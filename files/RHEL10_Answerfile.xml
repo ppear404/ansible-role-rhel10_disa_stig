@@ -1,0 +1,644 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--Evaluate-STIG 1.2610.1 / RHEL 10 STIG V1R3. Read-only checks for architecture-specific audit evidence mismatches. No unconditional waivers.--><STIGComments Name="RHEL10">
+  <Vuln ID="V-281131">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="O">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    $program = 'gpasswd'
+    $path = [regex]::Escape('/usr/bin/' + $program)
+    $key = [regex]::Escape('privileged-' + $program)
+    $status = @(& auditctl -s 2>&1)
+    if ($LASTEXITCODE -ne 0 -or ($status -join "`n") -notmatch '(?m)^enabled\s+[12]$' -or
+        ($status -join "`n") -notmatch '(?m)^pid\s+[1-9][0-9]*$') {
+        throw 'Cannot confirm that kernel auditing and auditd are enabled.'
+    }
+    $runtime = @(& auditctl -l 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw 'auditctl -l failed.' }
+    $persistent = @(Get-Content -LiteralPath '/etc/audit/rules.d/30-rhel10-stig.rules')
+    $compiled = @(Get-Content -LiteralPath '/etc/audit/audit.rules')
+    # Refuse an override when a potentially suppressing task/exit rule is present.
+    if (($runtime -join "`n") -match '(?m)^-a\s+(?:never,(?:task|exit)|(?:task|exit),never)(?:\s|$)') {
+        throw 'Potentially suppressing audit rule requires manual review.'
+    }
+    $evidence = @()
+    foreach ($arch in @('b32', 'b64')) {
+        # Anchoring rejects extra auid, success, uid, or other restrictive filters.
+        # auditctl expands perm=x to execve,execveat on this RHEL release.
+        $pattern = '^\s*-a always,exit -F arch=' + $arch +
+            '(?: -S (?:all|execve,execveat|execveat,execve))? -F path=' + $path +
+            ' -F perm=x (?:-k |-F key=)' + $key + '\s*$'
+        foreach ($source in @('runtime', 'persistent', 'compiled')) {
+            $lines = switch ($source) {
+                'runtime' { $runtime }
+                'persistent' { $persistent }
+                'compiled' { $compiled }
+            }
+            $matches = @($lines | Where-Object { $_ -cmatch $pattern })
+            if ($matches.Count -eq 0) { throw "Missing unfiltered $arch rule in $source for $program." }
+            $evidence += "${source}: $($matches[0])"
+        }
+    }
+    return @{ Valid = $true; Results = "Live DISA V1R3 validation for $program passed.`n" + ($evidence -join "`n") }
+}
+catch {
+    return @{ Valid = $false; Results = "Custom validation failed; finding remains Open: $($_.Exception.Message)" }
+}]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>Evaluate-STIG 1.2610.1 expects an architecture-neutral -S all rule, while DISA V1R3 prescribes b32 and b64 execution rules. The read-only custom check verified enabled auditing and both unfiltered rules in runtime, persistent, and compiled configuration. See live validation evidence below.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>The evidence mismatch exception was not applied because fresh validation failed. Investigate the recorded validation result; no static waiver is granted.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281135">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="O">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    $program = 'passwd'
+    $path = [regex]::Escape('/usr/bin/' + $program)
+    $key = [regex]::Escape('privileged-' + $program)
+    $status = @(& auditctl -s 2>&1)
+    if ($LASTEXITCODE -ne 0 -or ($status -join "`n") -notmatch '(?m)^enabled\s+[12]$' -or
+        ($status -join "`n") -notmatch '(?m)^pid\s+[1-9][0-9]*$') {
+        throw 'Cannot confirm that kernel auditing and auditd are enabled.'
+    }
+    $runtime = @(& auditctl -l 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw 'auditctl -l failed.' }
+    $persistent = @(Get-Content -LiteralPath '/etc/audit/rules.d/30-rhel10-stig.rules')
+    $compiled = @(Get-Content -LiteralPath '/etc/audit/audit.rules')
+    # Refuse an override when a potentially suppressing task/exit rule is present.
+    if (($runtime -join "`n") -match '(?m)^-a\s+(?:never,(?:task|exit)|(?:task|exit),never)(?:\s|$)') {
+        throw 'Potentially suppressing audit rule requires manual review.'
+    }
+    $evidence = @()
+    foreach ($arch in @('b32', 'b64')) {
+        # Anchoring rejects extra auid, success, uid, or other restrictive filters.
+        # auditctl expands perm=x to execve,execveat on this RHEL release.
+        $pattern = '^\s*-a always,exit -F arch=' + $arch +
+            '(?: -S (?:all|execve,execveat|execveat,execve))? -F path=' + $path +
+            ' -F perm=x (?:-k |-F key=)' + $key + '\s*$'
+        foreach ($source in @('runtime', 'persistent', 'compiled')) {
+            $lines = switch ($source) {
+                'runtime' { $runtime }
+                'persistent' { $persistent }
+                'compiled' { $compiled }
+            }
+            $matches = @($lines | Where-Object { $_ -cmatch $pattern })
+            if ($matches.Count -eq 0) { throw "Missing unfiltered $arch rule in $source for $program." }
+            $evidence += "${source}: $($matches[0])"
+        }
+    }
+    return @{ Valid = $true; Results = "Live DISA V1R3 validation for $program passed.`n" + ($evidence -join "`n") }
+}
+catch {
+    return @{ Valid = $false; Results = "Custom validation failed; finding remains Open: $($_.Exception.Message)" }
+}]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>Evaluate-STIG 1.2610.1 expects an architecture-neutral -S all rule, while DISA V1R3 prescribes b32 and b64 execution rules. The read-only custom check verified enabled auditing and both unfiltered rules in runtime, persistent, and compiled configuration. See live validation evidence below.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>The evidence mismatch exception was not applied because fresh validation failed. Investigate the recorded validation result; no static waiver is granted.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281214">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="O">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    $file = 'password-auth'
+    $integrity = @(& authselect check 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw 'authselect integrity check failed.' }
+    $current = @(& authselect current --raw 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot read authselect profile.' }
+    $profile = (($current -join ' ').Trim() -split '\s+')[0]
+    if ($profile -cnotmatch '^custom/[A-Za-z0-9_-]+$') { throw 'Expected a custom authselect profile.' }
+    if (-not (Test-Path -LiteralPath '/usr/lib64/security/pam_pwquality.so' -PathType Leaf)) {
+        throw 'pwquality PAM module missing.'
+    }
+    $evidence = @()
+    $quality = @()
+    foreach ($path in @("/etc/pam.d/$file", "/etc/authselect/$profile/$file")) {
+        $lines = @(Get-Content -LiteralPath $path)
+        $password = @($lines | Where-Object { $_ -cmatch '^\s*password\s+' })
+        $matches = @($password | Where-Object { $_ -cmatch '\bpam_pwquality[.]so(?:\s|$)' })
+        if ($matches.Count -ne 1 -or $password.Count -eq 0 -or $matches[0] -cne $password[0]) {
+            throw "Missing, duplicate, or bypassable pwquality rule in $path."
+        }
+        # Only the known unconditional enforcing layout is eligible for this exception.
+        # local_users_only is the existing authselect profile option, not a waiver.
+        if ($matches[0] -cnotmatch '^\s*password\s+(required|requisite)\s+pam_pwquality[.]so(?:\s+local_users_only)?\s*$') {
+            throw "Unsupported control, arguments, or conditional rule in $path."
+        }
+        $quality += ($matches[0].Trim() -replace '\s+', ' ')
+        $evidence += "${path}: $($matches[0])"
+    }
+    if ($quality[0] -cne $quality[1]) { throw 'Active and persistent quality rules differ.' }
+    return @{ Valid = $true; Results = "Live $file pwquality enforcement verified; authselect integrity valid.`n" + ($evidence -join "`n") }
+}
+catch {
+    return @{ Valid = $false; Results = "Validation failed; finding remains Open: $($_.Exception.Message)" }
+}]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>Evaluate-STIG 1.2610.1 accepts only required and falsely rejects requisite. PAM requisite enforces failure immediately. Fresh validation confirms the installed module, valid authselect custom profile, and matching unconditional first password rules in active and persistent files; no earlier password rule can bypass pwquality.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>Fresh validation failed; no override was applied. Review recorded evidence.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281215">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="O">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    $file = 'system-auth'
+    $integrity = @(& authselect check 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw 'authselect integrity check failed.' }
+    $current = @(& authselect current --raw 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot read authselect profile.' }
+    $profile = (($current -join ' ').Trim() -split '\s+')[0]
+    if ($profile -cnotmatch '^custom/[A-Za-z0-9_-]+$') { throw 'Expected a custom authselect profile.' }
+    if (-not (Test-Path -LiteralPath '/usr/lib64/security/pam_pwquality.so' -PathType Leaf)) {
+        throw 'pwquality PAM module missing.'
+    }
+    $evidence = @()
+    $quality = @()
+    foreach ($path in @("/etc/pam.d/$file", "/etc/authselect/$profile/$file")) {
+        $lines = @(Get-Content -LiteralPath $path)
+        $password = @($lines | Where-Object { $_ -cmatch '^\s*password\s+' })
+        $matches = @($password | Where-Object { $_ -cmatch '\bpam_pwquality[.]so(?:\s|$)' })
+        if ($matches.Count -ne 1 -or $password.Count -eq 0 -or $matches[0] -cne $password[0]) {
+            throw "Missing, duplicate, or bypassable pwquality rule in $path."
+        }
+        # Only the known unconditional enforcing layout is eligible for this exception.
+        # local_users_only is the existing authselect profile option, not a waiver.
+        if ($matches[0] -cnotmatch '^\s*password\s+(required|requisite)\s+pam_pwquality[.]so(?:\s+local_users_only)?\s*$') {
+            throw "Unsupported control, arguments, or conditional rule in $path."
+        }
+        $quality += ($matches[0].Trim() -replace '\s+', ' ')
+        $evidence += "${path}: $($matches[0])"
+    }
+    if ($quality[0] -cne $quality[1]) { throw 'Active and persistent quality rules differ.' }
+    return @{ Valid = $true; Results = "Live $file pwquality enforcement verified; authselect integrity valid.`n" + ($evidence -join "`n") }
+}
+catch {
+    return @{ Valid = $false; Results = "Validation failed; finding remains Open: $($_.Exception.Message)" }
+}]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>Evaluate-STIG 1.2610.1 accepts only required and falsely rejects requisite. PAM requisite enforces failure immediately. Fresh validation confirms the installed module, valid authselect custom profile, and matching unconditional first password rules in active and persistent files; no earlier password rule can bypass pwquality.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>Fresh validation failed; no override was applied. Review recorded evidence.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-280980">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    function Run-Checked([string]$Program, [string[]]$Arguments) {
+        $value = @(& $Program @Arguments 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "$Program failed: $value" }
+        return ($value -join "`n").Trim()
+    }
+    Run-Checked 'rpm' @('-q', 'aide', 's-nail', 'postfix') | Out-Null
+    foreach ($unit in @('postfix.service', 'rhel10-stig-aide.timer')) {
+        if ((Run-Checked 'systemctl' @('is-enabled', $unit)) -cne 'enabled') { throw "$unit is not enabled" }
+        if ((Run-Checked 'systemctl' @('is-active', $unit)) -cne 'active') { throw "$unit is not active" }
+    }
+    $next = Run-Checked 'systemctl' @('show', 'rhel10-stig-aide.timer', '--property=NextElapseUSecRealtime', '--value')
+    if ([string]::IsNullOrWhiteSpace($next) -or $next -eq 'n/a') { throw 'No next scheduled scan' }
+    if ((Run-Checked 'systemctl' @('show', 'rhel10-stig-aide.timer', '--property=NeedDaemonReload', '--value')) -ne 'no') { throw 'Pending unit reload' }
+    if ((Run-Checked 'systemctl' @('show', 'rhel10-stig-aide.service', '--property=NeedDaemonReload', '--value')) -ne 'no') { throw 'Pending service reload' }
+    if ((Run-Checked 'systemctl' @('show', 'rhel10-stig-aide.service', '--property=ExecStart', '--value')) -notmatch 'path=/usr/local/sbin/rhel10-stig-aide-check ; argv\[\]=/usr/local/sbin/rhel10-stig-aide-check ;') { throw 'Unexpected effective scan command' }
+    foreach ($unit in @('rhel10-stig-aide.timer', 'rhel10-stig-aide.service')) {
+        $dropins = Run-Checked 'systemctl' @('show', $unit, '--property=DropInPaths', '--value')
+        if ($dropins) { throw 'Unit overrides require review' }
+        if ((Run-Checked 'systemctl' @('show', $unit, '--property=FragmentPath', '--value')) -cne "/etc/systemd/system/$unit") { throw 'Unexpected unit source' }
+    }
+    if ((Get-Item '/var/lib/aide/aide.db.gz').Length -le 0) { throw 'Missing AIDE baseline' }
+    if ((Run-Checked 'postconf' @('-h', 'alias_maps')) -cne 'lmdb:/etc/aliases') { throw 'Unsupported mail alias map' }
+    $recipient = Run-Checked 'postmap' @('-q', 'root', 'lmdb:/etc/aliases')
+    if ([string]::IsNullOrWhiteSpace($recipient) -or $recipient -eq 'root') { throw 'Missing designated root recipient' }
+    if ((Get-FileHash -Algorithm SHA256 '/usr/local/sbin/rhel10-stig-aide-check').Hash -cne '6C561DA25F605118108D58D2BC4F7904F0A9A7C7D8DC48F10A3960BC7D682E83') { throw 'Unexpected content: /usr/local/sbin/rhel10-stig-aide-check' }
+    if ((Run-Checked 'stat' @('-c', '%u:%g:%a', '/usr/local/sbin/rhel10-stig-aide-check')) -cne '0:0:700') { throw 'Unsafe ownership or mode: /usr/local/sbin/rhel10-stig-aide-check' }
+    if ((Get-FileHash -Algorithm SHA256 '/etc/systemd/system/rhel10-stig-aide.service').Hash -cne 'B69BBE078D2720A6DDDAB62CCEF2CD3972E45978500F534D2B8268A238B6B5F4') { throw 'Unexpected content: /etc/systemd/system/rhel10-stig-aide.service' }
+    if ((Run-Checked 'stat' @('-c', '%u:%g:%a', '/etc/systemd/system/rhel10-stig-aide.service')) -cne '0:0:644') { throw 'Unsafe ownership or mode: /etc/systemd/system/rhel10-stig-aide.service' }
+    if ((Get-FileHash -Algorithm SHA256 '/etc/systemd/system/rhel10-stig-aide.timer').Hash -cne 'DBD84D1A8949E049FE60E9B4D94EAB3BEEAC15329D9BA54FAECAAD0678505322') { throw 'Unexpected content: /etc/systemd/system/rhel10-stig-aide.timer' }
+    if ((Run-Checked 'stat' @('-c', '%u:%g:%a', '/etc/systemd/system/rhel10-stig-aide.timer')) -cne '0:0:644') { throw 'Unsafe ownership or mode: /etc/systemd/system/rhel10-stig-aide.timer' }
+    return @{ Valid = $true; Results = "Daily persistent AIDE timer active; next scan: $next; exact managed scan/mail script and units verified; Postfix active, root alias: $recipient. Delivery and recipient ownership require site verification." }
+} catch {
+    return @{ Valid = $false; Results = "V-280980 validation failed: $($_.Exception.Message)" }
+}]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>The native check only recognizes cron. Live validation verifies the equivalent daily systemd scan and local administrator notification configuration. Security plan procedure: The SA reviews daily AIDE reports, investigates unexpected changes with the ISSO, and approves baseline updates only after authorized changes. The SA verifies the root alias designates the responsible personnel and tests delivery after mail changes; failed scans and queued mail are investigated daily.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>Required live scan or notification evidence is missing. Review the validation error.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-280991">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    function Run-Checked([string]$Program, [string[]]$Arguments) {
+        $output = @(& $Program @Arguments 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "$Program failed: $output" }
+        return ($output -join "`n").Trim()
+    }
+    if ((Run-Checked 'systemctl' @('is-enabled', 'rsyslog.service')) -cne 'enabled') { throw 'rsyslog is not enabled' }
+    if ((Run-Checked 'systemctl' @('is-active', 'rsyslog.service')) -cne 'active') { throw 'rsyslog is not active' }
+    Run-Checked 'rsyslogd' @('-N1') | Out-Null
+    # Fresh unique probes verify every cron severity, including debug.
+    # This functional check intentionally writes eight identifiable test log records.
+    $token = 'STIG-TEST-CRON-LOGGING-' + [guid]::NewGuid().ToString('N')
+    $levels = @('emerg', 'alert', 'crit', 'err', 'warning', 'notice', 'info', 'debug')
+    foreach ($level in $levels) {
+        Run-Checked 'logger' @('-p', "cron.$level", '-t', 'V-280991-validation', "$token-$level") | Out-Null
+    }
+    $missing = @($levels)
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        $log = (Get-Content -LiteralPath '/var/log/cron' -Tail 1000) -join "`n"
+        $missing = @($levels | Where-Object { -not $log.Contains("$token-$_") })
+        if ($missing.Count -eq 0) { break }
+        Start-Sleep -Milliseconds 500
+    }
+    if ($missing.Count -gt 0) { throw "Cron messages missing from /var/log/cron: $($missing -join ', ')" }
+    return @{ Valid = $true; Results = "rsyslog enabled/active and configuration valid. Fresh cron probes at all eight severities reached /var/log/cron; token: $token" }
+} catch {
+    return @{ Valid = $false; Results = "V-280991 validation failed: $($_.Exception.Message)" }
+}]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>Evaluate-STIG 1.2610.1 has no native check for V-280991. Live validation confirms rsyslog configuration and service state and injects fresh unique cron messages at all severities, requiring each in /var/log/cron. No static waiver is used.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>Live cron logging validation failed. Investigate the reported service, configuration, or missing log evidence.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281173">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode />
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>Manual policy determination, based on the system owner's statement on 2026-11-13: temporary accounts are not needed or authorized for this system. No temporary-account use is approved; the 72-hour expiration requirement has no authorized temporary accounts to which it applies. This is documented policy evidence, not an automated assertion that account purpose or absence was discovered from system attributes. Security plan procedure: The SA rejects requests to create temporary accounts and uses the normal authorization process for named permanent accounts. The SA and ISSO review local and centrally managed account inventories against approved account records at least monthly and after account changes. Any discovered temporary or unapproved account is promptly disabled, investigated with the ISSO, and removed through the account management process. If temporary accounts become necessary, obtain authorization for a policy change, withdraw this answer, and configure and verify expiration within 72 hours before use, using chage -l to verify each account's expiration. Emergency or break-glass accounts are distinct from temporary accounts and are reviewed under their applicable requirements. Retain the prohibition, review records, and any investigation evidence in the security plan.</ValidTrueComment>
+        <ValidFalseStatus>NR</ValidFalseStatus>
+        <ValidFalseComment>The documented manual determination requires review if system account policy changes.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281167">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    $source = (Get-Content -Raw -LiteralPath '/etc/grub.d/01_users').Replace("`r`n", "`n").Trim()
+    $compiled = (Get-Content -Raw -LiteralPath '/etc/grub2.cfg').Replace("`r`n", "`n")
+    $names = [regex]::Matches($compiled, '(?m)^\s*set superusers="([A-Za-z][A-Za-z0-9_-]*)"\s*$')
+    if ($names.Count -ne 1) { throw 'Expected exactly one nonempty GRUB superuser assignment' }
+    $account = $names[0].Groups[1].Value
+    if ($account.ToLowerInvariant() -in @('root','admin','administrator','superuser','unlock')) { throw 'Common GRUB account name' }
+    # Match the complete role-managed block, not isolated lines in inactive text.
+    $expectedBlock = @'
+if [ -f ${prefix}/user.cfg ]; then
+  source ${prefix}/user.cfg
+  if [ -n "${GRUB2_PASSWORD}" ]; then
+    set superusers="__ACCOUNT__"
+    export superusers
+    password_pbkdf2 __ACCOUNT__ ${GRUB2_PASSWORD}
+  fi
+fi
+'@
+    $expectedBlock = $expectedBlock.Replace('__ACCOUNT__', $account).Trim()
+    $blocks = [regex]::Matches($compiled, '(?s)### BEGIN /etc/grub.d/01_users ###\s*\n(.*?)\n### END /etc/grub.d/01_users ###')
+    if ($blocks.Count -ne 1 -or $blocks[0].Groups[1].Value.Trim() -cne $expectedBlock) { throw 'Generated GRUB authentication block differs from expected configuration' }
+    $expectedSource = @'
+#!/usr/bin/sh -e
+# Managed by Ansible - V-281167
+cat << EOF
+if [ -f \${prefix}/user.cfg ]; then
+  source \${prefix}/user.cfg
+  if [ -n "\${GRUB2_PASSWORD}" ]; then
+    set superusers="__ACCOUNT__"
+    export superusers
+    password_pbkdf2 __ACCOUNT__ \${GRUB2_PASSWORD}
+  fi
+fi
+EOF
+'@
+    if ($source -cne $expectedSource.Replace('__ACCOUNT__', $account).Trim()) { throw 'Persistent GRUB generator differs from expected configuration' }
+    if ([regex]::Matches($compiled, '(?m)^\s*(?:set\s+)?superusers\s*=').Count -ne 1 -or
+        [regex]::Matches($compiled, '(?m)^\s*password(?:_pbkdf2)?\s+').Count -ne 1) { throw 'Additional authentication directives require review' }
+    $password = (Get-Content -Raw -LiteralPath '/boot/grub2/user.cfg').Trim()
+    if ($password -cnotmatch '^GRUB2_PASSWORD=grub\.pbkdf2\.sha512\.[1-9][0-9]*\.[A-Fa-f0-9]+\.[A-Fa-f0-9]+$') { throw 'Missing or malformed GRUB PBKDF2 password' }
+    $ownerMode = @(& stat -c '%u:%g:%a' /boot/grub2/user.cfg 2>&1)
+    if ($LASTEXITCODE -ne 0 -or ($ownerMode -join '').Trim() -cne '0:0:600') { throw 'Unsafe GRUB password file ownership or mode' }
+    & grub2-script-check /etc/grub2.cfg 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Generated GRUB configuration failed syntax validation' }
+    return @{ Valid = $true; Results = "GRUB account '$account' is nondefault and outside the DISA/evaluator common-name examples. Persistent generator and generated authentication block match; export and matching PBKDF2 binding verified; protected password file present. No password material disclosed. Boot-console interaction was not tested." }
+} catch {
+    return @{ Valid = $false; Results = "V-281167 validation failed: $($_.Exception.Message)" }
+}
+]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>Evaluate-STIG leaves a configured GRUB name Not Reviewed for uniqueness review. The existing role uses a dedicated nondefault GRUB account, excluding root, admin, administrator, superuser and unlock case-insensitively. Live validation requires matching persistent and generated authentication blocks and a protected PBKDF2 password file. Security plan procedure: The SA selects a dedicated GRUB-only account name that is not common or easily guessed, reviews it when boot access configuration changes, and verifies regenerated GRUB configuration. Reassess this answer if the account name no longer meets the site's naming policy. This check does not assess password secrecy or provide a boot-console authentication test.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>GRUB name or authentication configuration could not be validated; investigate the recorded error.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281199">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    function Run-Checked([string]$Program, [string[]]$Arguments) {
+        $value = @(& $Program @Arguments 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "$Program failed" }
+        return ($value -join "`n").Trim()
+    }
+    $approvalPath = '/etc/security/rhel10-stig-approved-local-accounts.json'
+    if ((Run-Checked 'stat' @('-c', '%u:%g:%a', $approvalPath)) -cne '0:0:600') { throw 'Unsafe approval record ownership or mode' }
+    $approved = @(ConvertFrom-Json -InputObject (Get-Content -Raw -LiteralPath $approvalPath))
+    if ($approved.Count -eq 0 -or @($approved | Select-Object -Unique).Count -ne $approved.Count) { throw 'Empty or duplicate approval list' }
+    foreach ($name in $approved) {
+        if ($name -isnot [string] -or $name -cnotmatch '^[A-Za-z_][A-Za-z0-9_.-]*[$]?$') { throw 'Invalid approval record' }
+    }
+    $lines = @(Get-Content -LiteralPath '/etc/passwd')
+    $interactive = @()
+    $seen = @()
+    foreach ($line in $lines) {
+        $fields = $line.Split(':')
+        if ($fields.Count -ne 7 -or $fields[2] -notmatch '^\d+$' -or $fields[3] -notmatch '^\d+$' -or $fields[0] -cin $seen) { throw 'Malformed or duplicate passwd entry' }
+        $seen += $fields[0]
+        # Include low-UID and empty/custom shells conservatively; do not hide locked accounts.
+        if ($fields[6] -cmatch '/(?:nologin|false|sync|shutdown|halt)$') { continue }
+        $name = $fields[0]
+        if ($name -cnotin $approved) { throw "Unapproved interactive account: $name" }
+        if ($fields[2] -eq '0') {
+            if ($name -cne 'root') { throw 'Additional UID zero account requires review' }
+        } else {
+            $sudo = Run-Checked 'sudo' @('-n', '-l', '-U', $name)
+            if ($sudo -notmatch '(?m)^\s*\(ALL(?:\s*:\s*ALL)?\)\s+(?:NOPASSWD:\s*)?ALL\s*$') { throw "Cannot confirm approved privileged access: $name" }
+        }
+        $interactive += $name
+    }
+    if ($interactive.Count -eq 0) { throw 'No account evidence read' }
+    $status = Run-Checked 'auditctl' @('-s')
+    if ($status -notmatch '(?m)^enabled\s+[12]$' -or $status -notmatch '(?m)^pid\s+[1-9][0-9]*$') { throw 'Auditing is not enabled with a running daemon' }
+    $runtime = Run-Checked 'auditctl' @('-l')
+    if ($runtime -match '(?m)^-a\s+(?:never,(?:task|exit)|(?:task|exit),never)(?:\s|$)') { throw 'Potentially suppressing audit rule requires review' }
+    $persistent = (Get-Content -LiteralPath '/etc/audit/rules.d/30-rhel10-stig.rules') -join "`n"
+    $compiled = (Get-Content -LiteralPath '/etc/audit/audit.rules') -join "`n"
+    foreach ($arch in @('b32','b64')) {
+        $pattern = '(?m)^-a always,exit -F arch=' + $arch + '(?: -S [a-z0-9_,]+)? -F path=/etc/passwd -F perm=wa (?:-F key=|-k )identity\s*$'
+        foreach ($evidence in @($runtime, $persistent, $compiled)) {
+            if ($evidence -cnotmatch $pattern) { throw "Missing unfiltered $arch passwd change audit rule" }
+        }
+    }
+    return @{ Valid = $true; Results = "Local interactive accounts match the approved privileged list: $($interactive -join ', '). Privileged access confirmed; passwd changes monitored by enabled auditing with b32/b64 runtime, persistent and compiled rules. Approval remains an SA/ISSO policy record, not inferred from audit coverage." }
+} catch {
+    return @{ Valid = $false; Results = "V-281199 validation failed: $($_.Exception.Message)" }
+}
+]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>Local interactive accounts are authorized for privileged users only. The approved dev accounts are root and ansible, recorded from the owner's account-policy clarification on 2026-11-13. Live validation compares every potentially interactive local account against the root-owned approval record, confirms privileged access, and verifies existing passwd-change audit rules. Monitoring is supporting evidence, not a substitute for account authorization. Security plan procedure: The SA obtains ISSO approval before creating a local interactive privileged account and updates the managed approval record only after approval. Review local interactive accounts against the approved inventory at least monthly and after account changes; review identity audit events and investigate unapproved additions or changes. Promptly disable and remove unauthorized accounts through the approved account management process. Retain approval and review records in the security plan. Nonprivileged local interactive accounts are not authorized by this policy.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>The approved-account comparison, privilege check, or passwd monitoring evidence failed; investigate the validation error. No account is automatically approved or deleted.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281326">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    $python = @'
+import os, stat, subprocess, json, re
+from pathlib import Path
+
+def scan():
+    homes = {Path('/root')}
+    entries = Path('/etc/passwd').read_text().splitlines()
+    if not entries:
+        raise ValueError('Empty local account inventory')
+    for line in entries:
+        fields = line.split(':')
+        if len(fields) != 7 or not fields[5].startswith('/'):
+            raise ValueError('Malformed local account home record')
+        homes.add(Path(fields[5]))
+    if Path('/home').exists():
+        homes.update(p for p in Path('/home').iterdir() if p.is_dir())
+    directories = []
+    protected = []
+    files_checked = 0
+    for directory in sorted({p / '.ssh' for p in homes}):
+        try:
+            info = directory.lstat()
+        except FileNotFoundError:
+            continue
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+            raise ValueError(f'Review non-directory or linked SSH directory: {directory}')
+        directories.append(str(directory))
+        def walk_error(error):
+            raise error
+        for current, subdirs, files in os.walk(directory, onerror=walk_error):
+            for name in subdirs:
+                if (Path(current) / name).is_symlink():
+                    raise ValueError(f'Review linked SSH subdirectory: {Path(current) / name}')
+            for name in files:
+                path = Path(current) / name
+                info = path.stat()  # Follow file links; missing/unreadable targets fail closed.
+                if not stat.S_ISREG(info.st_mode):
+                    raise ValueError(f'Review nonregular SSH file: {path}')
+                with path.open('rb') as stream:
+                    header = stream.read(4096)
+                files_checked += 1
+                private = b'PRIVATE KEY' in header or header.startswith(b'PuTTY-User-Key-File-')
+                standard_name = name.startswith('id_') and not name.endswith(('.pub', '-cert.pub'))
+                if not private and not standard_name:
+                    continue
+                if not re.search(br'-----BEGIN (?:OPENSSH |RSA |DSA |EC |ENCRYPTED )?PRIVATE KEY-----', header):
+                    raise ValueError(f'Unsupported or malformed private-key candidate: {path}')
+                result = subprocess.run(
+                    ['ssh-keygen', '-y', '-P', '', '-f', str(path)],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                    timeout=10, env={**os.environ, 'LC_ALL': 'C'}, check=False)
+                if result.returncode == 0:
+                    raise ValueError(f'Private key opens without a passphrase: {path}')
+                # A nonzero exit alone is not evidence of encryption.
+                if b'incorrect passphrase supplied to decrypt private key' not in result.stderr.lower():
+                    raise ValueError(f'Cannot confirm passphrase protection for key: {path}')
+                protected.append(str(path))
+    return {'valid': True, 'results': 'Scanned local passwd home .ssh directories plus /home/*/.ssh and /root/.ssh; '
+            + f'{len(directories)} directories, {files_checked} files, {len(protected)} protected private keys. '
+            + ('No private-key candidates found.' if not protected else 'Protected key paths: ' + ', '.join(protected))
+            + ' Scope excludes private keys stored outside these directories; site procedure prohibits such unregistered storage.'}
+
+try:
+    print(json.dumps(scan()))
+except Exception as error:
+    # Only paths/reasons; never expose key material or ssh-keygen output.
+    print(json.dumps({'valid': False, 'results': str(error)}))
+'@
+    $output = @(& python3 -c $python 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw 'Private-key inventory helper failed' }
+    $check = ConvertFrom-Json -InputObject ($output -join "`n")
+    if ($check.valid -isnot [bool]) { throw 'Invalid validation result' }
+    return @{ Valid = $check.valid; Results = "V-281326: $($check.results)" }
+} catch {
+    return @{ Valid = $false; Results = 'V-281326 could not complete the private-key inventory/check; manual review required.' }
+}
+]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>User authentication private keys are normally retained on the client and are not expected on this managed system; authorized_keys contains public keys. Live validation inventories local account home .ssh directories, /home/*/.ssh and /root/.ssh recursively and rejects any recognized private key that opens with an empty passphrase. No private keys in this scope, or confirmed protected keys only, supports Not a Finding. Unreadable, malformed, unsupported or linked-directory evidence requires review and cannot pass. Security plan procedure: The SA prohibits unregistered user authentication private-key storage outside the inventoried SSH directories. Before installing or replacing a private key, record its owner and location and verify passphrase protection; review locations after account/key changes and at least quarterly. Remove unnecessary private keys through approved change procedures. If keys are required elsewhere, extend the inventory and validation before relying on this answer. OS SSH host identity keys are separate from user authentication keys. No private-key material is written to findings.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>An unprotected private key or incomplete inventory/protection check was detected. Review the validation reason and remove unnecessary keys or protect required keys through an approved change. No key is modified automatically.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281330">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode />
+        <ValidTrueStatus>NA</ValidTrueStatus>
+        <ValidTrueComment>AO-directed applicability determination for the production information system, as reported by the system owner on 2026-11-13: the production information system does not use MFA, and the AO has determined V-281330 Not Applicable. This is a manual AO determination, not an automated technical finding or a claim that the STIG's approved alternate-MFA exception was demonstrated. This answer applies only within the production authorization boundary covered by that determination. Retain the AO decision reference, covered system/boundary, approval date, review or expiration conditions, and supporting rationale in the security plan. Review this determination when the authentication architecture or authorization boundary changes, at authorization review, and when the AO decision expires or is withdrawn. Reassess certificate-to-account mapping before introducing PKI-based authentication. Selecting PRODUCTION_AO explicitly applies this recorded production determination; it must not be used for systems outside its scope.</ValidTrueComment>
+        <ValidFalseStatus>NR</ValidFalseStatus>
+        <ValidFalseComment>Review the production AO applicability determination before applying this answer.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281332">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    $helper = '/usr/local/sbin/rhel10-stig-firewall-validate'
+    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $helper).Hash -cne 'F7A46B35CA2F0B499F8F5F92150842CFF273AE6236529C5D0112CE1BC0BFF15C') { throw 'Firewall validator changed; review required' }
+    $mode = @(& stat -c '%u:%g:%a' $helper 2>&1)
+    if ($LASTEXITCODE -ne 0 -or ($mode -join '').Trim() -cne '0:0:700') { throw 'Unsafe firewall validator ownership or mode' }
+    $output = @(& python3 $helper 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw 'Firewall validator failed' }
+    $check = ($output -join "`n") | ConvertFrom-Json
+    if ($check.valid -isnot [bool]) { throw 'Invalid firewall validation result' }
+    return @{ Valid = $check.valid; Results = [string]$check.results }
+} catch {
+    return @{ Valid = $false; Results = "Firewall validation could not complete: $($_.Exception.Message)" }
+}]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>The owner approved SSH, Cockpit and DHCPv6 client services on 2026-11-13. Live read-only validation compares runtime and permanent firewalld access and service definitions against the managed approval record, requires enabled/active firewalld, validates interface bindings, rejects unexpected enabled policies and direct rules, and checks non-loopback listeners. Standard IPv6 control traffic is retained; IPv6 is not claimed disabled. Security plan procedure: Retain the PPSM CLSA, CAL review and vulnerability assessment references supporting the approved services; review firewall and running-service inventory after changes and at least quarterly. Obtain approval before adding exposure, and update the managed baseline only after review. Investigate drift and unapproved listeners. Dormant unbound stock zones are reported separately from active exposure; reassess before activation. The supplied approvals are owner attestations; the validator cannot independently assess PPSM documents or application vulnerabilities.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>Firewalld, approved access, listener inventory or persistent/runtime evidence failed validation. Review the reported reason; no firewall rules are automatically removed.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281333">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    $helper = '/usr/local/sbin/rhel10-stig-firewall-validate'
+    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $helper).Hash -cne 'F7A46B35CA2F0B499F8F5F92150842CFF273AE6236529C5D0112CE1BC0BFF15C') { throw 'Firewall validator changed; review required' }
+    $mode = @(& stat -c '%u:%g:%a' $helper 2>&1)
+    if ($LASTEXITCODE -ne 0 -or ($mode -join '').Trim() -cne '0:0:700') { throw 'Unsafe firewall validator ownership or mode' }
+    $output = @(& python3 $helper 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw 'Firewall validator failed' }
+    $check = ($output -join "`n") | ConvertFrom-Json
+    if ($check.valid -isnot [bool]) { throw 'Invalid firewall validation result' }
+    return @{ Valid = $check.valid; Results = [string]$check.results }
+} catch {
+    return @{ Valid = $false; Results = "Firewall validation could not complete: $($_.Exception.Message)" }
+}]]></ValidationCode>
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>The owner approved SSH, Cockpit and DHCPv6 client services on 2026-11-13. Live read-only validation compares runtime and permanent firewalld access and service definitions against the managed approval record, requires enabled/active firewalld, validates interface bindings, rejects unexpected enabled policies and direct rules, and checks non-loopback listeners. Standard IPv6 control traffic is retained; IPv6 is not claimed disabled. Security plan procedure: Retain the PPSM CLSA, CAL review and vulnerability assessment references supporting the approved services; review firewall and running-service inventory after changes and at least quarterly. Obtain approval before adding exposure, and update the managed baseline only after review. Investigate drift and unapproved listeners. Dormant unbound stock zones are reported separately from active exposure; reassess before activation. The supplied approvals are owner attestations; the validator cannot independently assess PPSM documents or application vulnerabilities.</ValidTrueComment>
+        <ValidFalseStatus>O</ValidFalseStatus>
+        <ValidFalseComment>Firewalld, approved access, listener inventory or persistent/runtime evidence failed validation. Review the reported reason; no firewall rules are automatically removed.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-281106">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode />
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>Manual architecture and operational determination based on the system owner's statements on 2026-11-13: audit records are sent to Splunk in real time, and server storage capacity is monitored. The V-281106 Check and Fix require one week of local audit storage when audit records are not immediately sent to a central audit record storage facility. The reported real-time Splunk forwarding provides that central storage path; the example 10 GB local partition is guidance based on activity, not a universal minimum. This answer relies on owner-attested forwarding and monitoring; it does not claim automated verification of Splunk receipt, retention, or the volume of one week's local records. Security plan procedure: The SA monitors local audit-filesystem capacity and the audit forwarding/collector health, verifies timely audit ingestion in Splunk at least daily and after forwarding changes, and retains monitoring and ingestion evidence. Alert the SA/ISSO on forwarding failure, ingestion lag or low local space; investigate promptly and restore forwarding or provide sufficient local capacity for the interruption. If immediate central collection cannot be maintained, reassess this determination and size local audit storage to retain at least one week's records using measured activity before relying on this answer. Document the Splunk destination/ownership, monitoring alert thresholds and escalation contacts, and central retention requirements in the security plan; review after audit workload or architecture changes. The local capacity snapshot is supporting evidence only, not a seven-day volume calculation.</ValidTrueComment>
+        <ValidFalseStatus>NR</ValidFalseStatus>
+        <ValidFalseComment>Review central collection and storage monitoring evidence before applying this manual determination.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-280935">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="NR">
+        <ValidationCode />
+        <ValidTrueStatus>NF</ValidTrueStatus>
+        <ValidTrueComment>Manual architecture determination based on the system owner's statement on 2026-11-13: this environment encrypts VM storage at the datastore level, providing data-at-rest protection outside the guest operating system; guest LUKS is not required by this architecture. Not a Finding is recorded at the owner's request on the basis of externally provided encryption, not a claim that guest LUKS is present. The DISA Check explicitly recognizes a documented and approved reason for omitting OS-level encryption, including hypervisor or disk-storage-array encryption, and describes that exception as Not Applicable. This entry does not invent an AO approval or independent datastore verification; retain the applicable architecture approval and storage-encryption evidence in the security plan. Security plan procedure: The virtualization/storage administrator verifies that every VM disk containing information requiring at-rest protection resides on encrypted storage and that required protection continues across storage migration, cloning, snapshots and backup/export paths. Document the covered VM/datastore mapping, encryption mechanism and applicable cryptographic assurance, key-management/access controls, approval reference and responsible owner. Review coverage after VM/storage changes and at least quarterly; investigate encryption or key-management failures and remediate uncovered storage. If external encryption no longer covers the required data, withdraw this determination and implement approved at-rest protection before relying on this answer. This guest-side manual answer cannot establish datastore encryption, protection against every modification threat, or approval validity.</ValidTrueComment>
+        <ValidFalseStatus>NR</ValidFalseStatus>
+        <ValidFalseComment>Review external storage encryption coverage and the documented architecture approval before applying this manual determination.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+  <Vuln ID="V-280987">
+    <AnswerKey Name="DEFAULT">
+      <Answer Index="1" ExpectedStatus="O">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    # Existence-only production decision, explicitly requested by the owner.
+    $candidates = @('/opt/splunkforwarder/bin/splunk')
+    $rpm = @(& rpm -ql splunkforwarder 2>$null)
+    if ($LASTEXITCODE -eq 0) {
+        $candidates += @($rpm | Where-Object { $_ -cmatch '^/.+/bin/splunk$' })
+    }
+    foreach ($cli in @($candidates | Select-Object -Unique)) {
+        $daemon = Join-Path (Split-Path -Parent $cli) 'splunkd'
+        if ([System.IO.File]::Exists($cli) -and [System.IO.File]::Exists($daemon)) {
+            $cliInfo = Get-Item -LiteralPath $cli
+            $daemonInfo = Get-Item -LiteralPath $daemon
+            if ($cliInfo.Length -gt 0 -and $daemonInfo.Length -gt 0) {
+                return @{ Valid = $true; Results = "Splunk Universal Forwarder installation detected: $cli and $daemon. Production owner assumption applied; configuration, receiver authentication, TLS, service state and ingestion were not checked." }
+            }
+        }
+    }
+    return @{ Valid = $false; Results = 'No recognized Splunk Universal Forwarder installation detected; status remains/reverts to Not Reviewed. Standard /opt/splunkforwarder or paths registered by the splunkforwarder RPM are checked. Review custom installations manually.' }
+} catch {
+    return @{ Valid = $false; Results = 'Splunk Universal Forwarder presence could not be established; Not Reviewed. No configuration correctness is asserted.' }
+}
+]]></ValidationCode>
+        <ValidTrueStatus>NA</ValidTrueStatus>
+        <ValidTrueComment>Production owner-directed assessment rule, stated on 2026-11-13: when Splunk Universal Forwarder is installed, its configuration correctness and validation are assumed to be handled by the Splunk management process, and V-280987 is recorded Not Applicable to the rsyslog-specific implementation. This is an explicit production assessment assumption, not evidence that mere installation satisfies receiver-authentication requirements or that the STIG supplies an automatic Splunk exemption. Presence validation checks recognized Universal Forwarder installation files only. It does not test TLS, trusted CA, permitted receiver identity, active forwarding, ingestion, or whether rsyslog also forwards audit records. Retain the Splunk team's configuration validation and responsibility records in the security plan. Reassess if the forwarding architecture changes, the forwarder is removed, or rsyslog is used for audit offloading. Absence or uncertain detection returns Not Reviewed. Apply this answer only to the production scope for which this assumption is authorized.</ValidTrueComment>
+        <ValidFalseStatus>NR</ValidFalseStatus>
+        <ValidFalseComment>No recognized Universal Forwarder installation was established. Review the offloading method and any custom installation path; neither compliance nor non-applicability is inferred.</ValidFalseComment>
+      </Answer>
+      <Answer Index="2" ExpectedStatus="NR">
+        <ValidationCode><![CDATA[$ErrorActionPreference = 'Stop'
+try {
+    # Existence-only production decision, explicitly requested by the owner.
+    $candidates = @('/opt/splunkforwarder/bin/splunk')
+    $rpm = @(& rpm -ql splunkforwarder 2>$null)
+    if ($LASTEXITCODE -eq 0) {
+        $candidates += @($rpm | Where-Object { $_ -cmatch '^/.+/bin/splunk$' })
+    }
+    foreach ($cli in @($candidates | Select-Object -Unique)) {
+        $daemon = Join-Path (Split-Path -Parent $cli) 'splunkd'
+        if ([System.IO.File]::Exists($cli) -and [System.IO.File]::Exists($daemon)) {
+            $cliInfo = Get-Item -LiteralPath $cli
+            $daemonInfo = Get-Item -LiteralPath $daemon
+            if ($cliInfo.Length -gt 0 -and $daemonInfo.Length -gt 0) {
+                return @{ Valid = $true; Results = "Splunk Universal Forwarder installation detected: $cli and $daemon. Production owner assumption applied; configuration, receiver authentication, TLS, service state and ingestion were not checked." }
+            }
+        }
+    }
+    return @{ Valid = $false; Results = 'No recognized Splunk Universal Forwarder installation detected; status remains/reverts to Not Reviewed. Standard /opt/splunkforwarder or paths registered by the splunkforwarder RPM are checked. Review custom installations manually.' }
+} catch {
+    return @{ Valid = $false; Results = 'Splunk Universal Forwarder presence could not be established; Not Reviewed. No configuration correctness is asserted.' }
+}
+]]></ValidationCode>
+        <ValidTrueStatus>NA</ValidTrueStatus>
+        <ValidTrueComment>Production owner-directed assessment rule, stated on 2026-11-13: when Splunk Universal Forwarder is installed, its configuration correctness and validation are assumed to be handled by the Splunk management process, and V-280987 is recorded Not Applicable to the rsyslog-specific implementation. This is an explicit production assessment assumption, not evidence that mere installation satisfies receiver-authentication requirements or that the STIG supplies an automatic Splunk exemption. Presence validation checks recognized Universal Forwarder installation files only. It does not test TLS, trusted CA, permitted receiver identity, active forwarding, ingestion, or whether rsyslog also forwards audit records. Retain the Splunk team's configuration validation and responsibility records in the security plan. Reassess if the forwarding architecture changes, the forwarder is removed, or rsyslog is used for audit offloading. Absence or uncertain detection returns Not Reviewed. Apply this answer only to the production scope for which this assumption is authorized.</ValidTrueComment>
+        <ValidFalseStatus>NR</ValidFalseStatus>
+        <ValidFalseComment>No recognized Universal Forwarder installation was established. Review the offloading method and any custom installation path; neither compliance nor non-applicability is inferred.</ValidFalseComment>
+      </Answer>
+    </AnswerKey>
+  </Vuln>
+</STIGComments>

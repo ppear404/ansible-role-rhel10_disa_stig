@@ -1,0 +1,51 @@
+---
+- name: V-281090 - Inspect the separate home mount
+  ansible.builtin.command: findmnt --noheadings --output OPTIONS --mountpoint /home
+  register: rhel10_stig_home_mount
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: V-281090 - Read persistent mount configuration
+  ansible.builtin.slurp:
+    src: /etc/fstab
+  register: rhel10_stig_fstab
+
+- name: V-281090 - Configure home filesystem execution protection
+  vars:
+    rhel10_stig_home_entries: >-
+      {{ (rhel10_stig_fstab.content | b64decode).splitlines()
+         | select('match', '^[ \t]*[^#\s]\S*[ \t]+/home[ \t]+') | list }}
+  block:
+    - name: V-281090 - Require a separate persistent home filesystem
+      ansible.builtin.assert:
+        that:
+          - rhel10_stig_home_mount.rc == 0
+          - rhel10_stig_home_entries | length == 1
+          - rhel10_stig_home_entries[0].split() | length >= 6
+        fail_msg: >-
+          V-281090 requires a separate mounted /home filesystem with one complete
+          /etc/fstab entry. Provision it before applying this control.
+
+    - name: V-281090 - Persist noexec while preserving other mount settings
+      vars:
+        rhel10_stig_home_fields: "{{ rhel10_stig_home_entries[0].split() }}"
+      ansible.posix.mount:
+        path: /home
+        src: "{{ rhel10_stig_home_fields[0] }}"
+        fstype: "{{ rhel10_stig_home_fields[2] }}"
+        opts: >-
+          {{ (rhel10_stig_home_fields[3].split(',') | reject('equalto', 'exec')
+              | reject('equalto', 'noexec') | list + ['noexec']) | join(',') }}
+        dump: "{{ rhel10_stig_home_fields[4] }}"
+        passno: "{{ rhel10_stig_home_fields[5] }}"
+        state: present
+        backup: true
+      notify: Reload_systemd
+
+    - name: V-281090 - Apply noexec to the running home mount
+      ansible.posix.mount:
+        path: /home
+        opts: noexec
+        state: remounted
+      when: "'noexec' not in rhel10_stig_home_mount.stdout.split(',')"

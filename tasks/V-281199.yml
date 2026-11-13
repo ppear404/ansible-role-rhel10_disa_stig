@@ -1,0 +1,41 @@
+---
+- name: V-281199 - Require the approved local account list
+  ansible.builtin.assert:
+    that:
+      - rhel10_stig_authorized_local_accounts is sequence
+      - rhel10_stig_authorized_local_accounts is not string
+      - rhel10_stig_authorized_local_accounts | length > 0
+      - rhel10_stig_authorized_local_accounts | unique | length == rhel10_stig_authorized_local_accounts | length
+    fail_msg: Configure an SA/ISSO-approved list of privileged local interactive accounts.
+
+- name: V-281199 - Validate approved account names
+  ansible.builtin.assert:
+    that:
+      - item is string
+      - item is match('^[A-Za-z_][A-Za-z0-9_.-]*[$]?$')
+  loop: '{{ rhel10_stig_authorized_local_accounts }}'
+
+- name: V-281199 - Read local potentially interactive accounts
+  ansible.builtin.command:
+    argv:
+      - awk
+      - '-F:'
+      - '$7 !~ /\/(nologin|false|sync|shutdown|halt)$/ {print $1}'
+      - /etc/passwd
+  register: rhel10_stig_local_interactive_accounts
+  changed_when: false
+  check_mode: false
+
+- name: V-281199 - Reject unapproved local interactive accounts
+  ansible.builtin.assert:
+    that:
+      - rhel10_stig_local_interactive_accounts.stdout_lines | difference(rhel10_stig_authorized_local_accounts) | length == 0
+    fail_msg: Unapproved interactive accounts require SA/ISSO review; this role does not automatically delete accounts.
+
+- name: V-281199 - Install the approved account review record
+  ansible.builtin.copy:
+    content: "{{ rhel10_stig_authorized_local_accounts | to_json }}\n"
+    dest: /etc/security/rhel10-stig-approved-local-accounts.json
+    owner: root
+    group: root
+    mode: '0600'

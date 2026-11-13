@@ -1,0 +1,73 @@
+---
+- name: V-280998 - Ensure Postfix alias tools are installed
+  ansible.builtin.package:
+    name: postfix
+    state: present
+
+- name: V-280998 - Read active alias maps
+  ansible.builtin.command: postconf -h alias_maps
+  register: rhel10_stig_alias_maps
+  changed_when: false
+  check_mode: false
+
+- name: V-280998 - Read alias database configuration
+  ansible.builtin.command: postconf -h alias_database
+  register: rhel10_stig_alias_database
+  changed_when: false
+  check_mode: false
+
+- name: V-280998 - Validate the supported local alias map
+  ansible.builtin.assert:
+    that:
+      - rhel10_stig_alias_maps.stdout | trim == 'lmdb:/etc/aliases'
+      - rhel10_stig_alias_database.stdout | trim == 'lmdb:/etc/aliases'
+    fail_msg: Review the nonstandard Postfix alias maps before applying this control.
+
+- name: V-280998 - Read persistent mail aliases
+  ansible.builtin.slurp:
+    src: /etc/aliases
+  register: rhel10_stig_alias_source
+
+- name: V-280998 - Configure root mail notification recipients
+  vars:
+    rhel10_stig_existing_root_aliases: >-
+      {{ (rhel10_stig_alias_source.content | b64decode)
+         | regex_findall('(?m)^[ \t]*root:[ \t]*([^\n]+)$') }}
+    rhel10_stig_root_alias_value: >-
+      {{ (rhel10_stig_root_mail_recipients | join(', '))
+         if rhel10_stig_root_mail_recipients | length > 0
+         else (rhel10_stig_existing_root_aliases | first | default('') | trim) }}
+  block:
+    - name: V-280998 - Require a configured notification destination
+      ansible.builtin.assert:
+        that:
+          - rhel10_stig_root_mail_recipients is sequence
+          - rhel10_stig_root_mail_recipients is not string
+          - rhel10_stig_existing_root_aliases | length <= 1
+          - rhel10_stig_root_alias_value | length > 0
+          - rhel10_stig_root_alias_value is not search('[\r\n]')
+          - rhel10_stig_root_alias_value | lower != 'root'
+        fail_msg: Set rhel10_stig_root_mail_recipients to the approved ISSO and SA notification destinations.
+
+    - name: V-280998 - Persist the root mail alias
+      ansible.builtin.lineinfile:
+        path: /etc/aliases
+        regexp: '^[ \t]*root:'
+        line: 'root: {{ rhel10_stig_root_alias_value }}'
+        backup: true
+      notify: Rebuild_mail_aliases
+
+    - name: V-280998 - Query the compiled root alias
+      ansible.builtin.command: postmap -q root lmdb:/etc/aliases
+      register: rhel10_stig_compiled_root_alias
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: V-280998 - Request rebuild for a missing or stale alias database
+      ansible.builtin.debug:
+        msg: Checking compiled root mail notification alias
+      changed_when: >-
+        rhel10_stig_compiled_root_alias.rc != 0 or
+        rhel10_stig_compiled_root_alias.stdout | trim != rhel10_stig_root_alias_value
+      notify: Rebuild_mail_aliases

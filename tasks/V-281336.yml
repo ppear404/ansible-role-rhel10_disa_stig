@@ -1,0 +1,44 @@
+---
+- name: V-281336 - Require authoritative time server configuration
+  ansible.builtin.assert:
+    that:
+      - rhel10_stig_time_servers is sequence
+      - rhel10_stig_time_servers is not string
+      - rhel10_stig_time_servers | length > 0
+      - rhel10_stig_time_servers | unique | length == rhel10_stig_time_servers | length
+    fail_msg: Set rhel10_stig_time_servers to site-approved authoritative DoW time servers.
+
+- name: V-281336 - Validate time server names
+  ansible.builtin.assert:
+    that:
+      - item is string
+      - item is match('^[A-Za-z0-9][A-Za-z0-9.:-]*$')
+    fail_msg: Each time server must be a hostname or IP address without Chrony options.
+  loop: '{{ rhel10_stig_time_servers }}'
+
+- name: V-281336 - Install Chrony
+  ansible.builtin.package:
+    name: chrony
+    state: present
+
+- name: V-281336 - Read Chrony configuration
+  ansible.builtin.slurp:
+    src: /etc/chrony.conf
+  register: rhel10_stig_chrony_config
+
+- name: V-281336 - Configure authoritative servers and daily maximum polling
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true
+    validate: /usr/sbin/chronyd -p -f %s
+  notify: Restart_chronyd
+
+- name: V-281336 - Enable and start Chrony
+  ansible.builtin.systemd_service:
+    name: chronyd.service
+    enabled: true
+    state: started

@@ -1,0 +1,8 @@
+---
+- name: V-280990 | RHEL 10 must monitor all remote access methods.
+  ansible.builtin.lineinfile:
+    path: /etc/rsyslog.conf
+    regexp: '^\s*(authpriv\.\*|auth\.\*;authpriv\.\*;daemon\.\*)\s+/var/log/secure\s*$'
+    line: 'auth.*;authpriv.*;daemon.* /var/log/secure'
+    backup: true
+  notify: Restart_rsyslog

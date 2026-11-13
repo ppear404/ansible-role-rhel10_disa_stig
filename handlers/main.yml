@@ -1,0 +1,49 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for rhel10-stig
+- name: Reload_systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Remount_dev_shm
+  ansible.builtin.command: mount -o remount /dev/shm
+
+- name: Remount_boot
+  ansible.builtin.command: mount -o remount /boot
+
+- name: Augenrules_reload
+  ansible.builtin.include_tasks: reload_audit.yml
+
+- name: Rebuild_grub
+  ansible.builtin.command: grub2-mkconfig -o /boot/grub2/grub.cfg --update-bls-cmdline
+
+- name: Restart_rsyslog
+  ansible.builtin.systemd:
+    name: rsyslog.service
+    state: restarted
+
+- name: Restart_usbguard
+  ansible.builtin.systemd_service:
+    name: usbguard.service
+    state: restarted
+
+- name: Rebuild_mail_aliases
+  ansible.builtin.command: newaliases
+  changed_when: true
+
+- name: Reload_postfix
+  ansible.builtin.systemd_service:
+    name: postfix.service
+    state: reloaded
+  when: ansible_facts.services.get('postfix.service', {}).get('state', '') == 'running'
+
+- name: Restart_sssd
+  ansible.builtin.systemd_service:
+    name: sssd.service
+    state: restarted
+  when: ansible_facts.services.get('sssd.service', {}).get('state', '') == 'running'
+
+- name: Restart_chronyd
+  ansible.builtin.systemd_service:
+    name: chronyd.service
+    state: restarted

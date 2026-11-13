@@ -1,0 +1,30 @@
+---
+- name: V-281167 - Validate GRUB account settings
+  ansible.builtin.assert:
+    that:
+      - grub_superuser is match('^[A-Za-z][A-Za-z0-9_-]*$')
+      - grub_superuser not in ['root', 'admin', 'administrator', 'superuser', 'unlock']
+      - grub_password_hash is match('^grub\.pbkdf2\.sha512\.[0-9]+\.[0-9A-Fa-f]+\.[0-9A-Fa-f]+$')
+    quiet: true
+  no_log: true
+
+- name: V-281167 - Configure the GRUB superuser
+  ansible.builtin.template:
+    src: 01_users.j2
+    dest: /etc/grub.d/01_users
+    owner: root
+    group: root
+    mode: '0755'
+    backup: true
+    validate: /bin/sh -n %s
+  notify: Rebuild_grub
+
+- name: V-281167 - Configure the GRUB password
+  ansible.builtin.copy:
+    content: "GRUB2_PASSWORD={{ grub_password_hash }}\n"
+    dest: /boot/grub2/user.cfg
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  notify: Rebuild_grub

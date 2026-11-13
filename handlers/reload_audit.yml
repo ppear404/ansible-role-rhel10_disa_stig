@@ -1,0 +1,22 @@
+---
+- name: Inspect audit immutability before loading rules
+  ansible.builtin.command: auditctl -s
+  register: rhel10_stig_audit_status
+  changed_when: false
+  check_mode: false
+
+- name: Compile persistent audit rules when runtime configuration is immutable
+  ansible.builtin.command: augenrules
+  when: rhel10_stig_audit_status.stdout is search('(?m)^enabled\s+2$')
+  changed_when: true
+
+- name: Load audit rules when runtime configuration is mutable
+  ansible.builtin.command: augenrules --load
+  when: rhel10_stig_audit_status.stdout is not search('(?m)^enabled\s+2$')
+  changed_when: true
+
+- name: Reboot to activate immutable audit rule changes
+  ansible.builtin.reboot:
+    msg: Rebooting to activate updated immutable audit rules
+    reboot_timeout: 600
+  when: rhel10_stig_audit_status.stdout is search('(?m)^enabled\s+2$')

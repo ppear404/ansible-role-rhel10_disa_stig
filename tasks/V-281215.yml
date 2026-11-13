@@ -1,0 +1,12 @@
+---
+- name: Include V-281215 system-auth password quality
+  ansible.builtin.include_tasks:
+    file: pam_pwquality.yml
+    apply:
+      tags:
+        - V-281215
+  vars:
+    rhel10_stig_pwquality_control: V-281215
+    rhel10_stig_pwquality_file: system-auth
+  tags:
+    - V-281215

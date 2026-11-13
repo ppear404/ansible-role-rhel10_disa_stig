@@ -1,0 +1,11 @@
+---
+- name: Update mount options in /etc/fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^(\S+\s+{{ item.path | regex_escape }}\s+\S+\s+)defaults(\s+\d+\s+\d+\s*)$'
+    replace: '\g<1>defaults,{{ item.opts }}\g<2>'
+    backup: true
+  loop: "{{ mount_options }}"
+  loop_control:
+    label: "{{ item.path }}"
+  notify: Reload_systemd

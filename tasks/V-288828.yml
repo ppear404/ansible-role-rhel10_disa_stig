@@ -1,0 +1,26 @@
+---
+- name: V-288828 - Persist useradd execution auditing
+  ansible.builtin.lineinfile:
+    path: /etc/audit/rules.d/30-rhel10-stig.rules
+    line: "-a always,exit -F path=/usr/sbin/useradd -F perm=x -F auid>=1000 -F auid!=unset -k privileged-useradd"
+    create: true
+    owner: root
+    group: root
+    mode: '0640'
+    backup: true
+  notify: Augenrules_reload
+
+- name: V-288828 - Inspect loaded useradd audit rules
+  ansible.builtin.command: auditctl -l
+  register: rhel10_stig_useradd_rules
+  changed_when: false
+  check_mode: false
+
+- name: V-288828 - Request activation when the runtime rule is missing
+  ansible.builtin.debug:
+    msg: Checking useradd execution auditing
+  vars:
+    rhel10_stig_useradd_pattern: >-
+      (?m)^-a always,exit -S all -F path=/usr/sbin/useradd -F perm=x -F auid>=1000 -F auid!=(?:unset|-1|4294967295) -F key=privileged-useradd$
+  changed_when: rhel10_stig_useradd_rules.stdout is not search(rhel10_stig_useradd_pattern)
+  notify: Augenrules_reload

@@ -1,0 +1,73 @@
+---
+- name: V-281329 - Verify the reviewed trust bundle digest
+  ansible.builtin.assert:
+    that:
+      - >-
+        lookup('ansible.builtin.file', role_path + '/files/sssd_dod_roots.pem', rstrip=false) | hash('sha256') ==
+        'baf71b53a9f960b2f2e32daf444e45c67da58aca73a8bd46dbed92531ee431ce'
+    fail_msg: Trust bundle differs from the reviewed DoD roots; revalidate before deployment.
+
+- name: V-281329 - Gather service state
+  ansible.builtin.service_facts:
+
+- name: V-281329 - Check for a certificate database path override
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - |
+        import glob, pathlib, re
+        paths = ['/etc/sssd/sssd.conf'] + sorted(glob.glob('/etc/sssd/conf.d/*.conf'))
+        for path in paths:
+            for line in pathlib.Path(path).read_text().splitlines():
+                if re.match(r'^\s*pam_cert_db_path\s*=', line):
+                    print(line)
+  register: rhel10_stig_cert_db_override
+  changed_when: false
+  check_mode: false
+
+- name: V-281329 - Require the standard SSSD certificate database path
+  ansible.builtin.assert:
+    that:
+      - >-
+        rhel10_stig_cert_db_override.stdout_lines
+        | reject('match', '^\s*pam_cert_db_path\s*=\s*/etc/sssd/pki/sssd_auth_ca_db.pem\s*$') | list | length == 0
+    fail_msg: Review the SSSD certificate database path override before managing the standard trust database.
+
+- name: V-281329 - Inspect existing authentication trust database
+  ansible.builtin.stat:
+    path: /etc/sssd/pki/sssd_auth_ca_db.pem
+    follow: false
+    checksum_algorithm: sha256
+  register: rhel10_stig_sssd_ca_stat
+
+- name: V-281329 - Preserve unfamiliar authentication trust databases
+  ansible.builtin.assert:
+    that:
+      - >-
+        not rhel10_stig_sssd_ca_stat.stat.exists or
+        (rhel10_stig_sssd_ca_stat.stat.isreg | default(false) and
+         rhel10_stig_sssd_ca_stat.stat.checksum | default('') ==
+         'baf71b53a9f960b2f2e32daf444e45c67da58aca73a8bd46dbed92531ee431ce')
+    fail_msg: Existing SSSD CA database differs from the reviewed DoD roots; review trust requirements before replacing it.
+
+- name: V-281329 - Ensure the SSSD PKI directory exists
+  ansible.builtin.file:
+    path: /etc/sssd/pki
+    state: directory
+    owner: root
+    group: sssd
+    mode: '0750'
+    setype: _default
+
+- name: V-281329 - Install verified DoD authentication roots
+  ansible.builtin.copy:
+    src: sssd_dod_roots.pem
+    dest: /etc/sssd/pki/sssd_auth_ca_db.pem
+    owner: root
+    group: sssd
+    mode: '0640'
+    setype: _default
+    backup: true
+    validate: /usr/bin/openssl x509 -in %s -noout -checkend 0
+  notify: Restart_sssd

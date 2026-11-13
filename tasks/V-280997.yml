@@ -1,0 +1,5 @@
+---
+- name: V-280997 - Install postfix
+  ansible.builtin.package:
+    name: postfix
+    state: latest

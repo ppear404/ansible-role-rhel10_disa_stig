@@ -1,0 +1,230 @@
+---
+# tasks file for rhel10-stig - STIG for RHEL 10 category 2 controls
+- name: Include shared filesystem mount options
+  ansible.builtin.include_tasks: mount_options.yml
+
+- name: Include V-281233 /boot nosuid protection
+  ansible.builtin.include_tasks:
+    file: V-281233.yml
+    apply:
+      tags:
+        - V-281233
+  tags:
+    - V-281233
+
+- name: Include V-281248 nodev protection for local partitions
+  ansible.builtin.include_tasks:
+    file: V-281248.yml
+    apply:
+      tags:
+        - V-281248
+  tags:
+    - V-281248
+
+- name: Include V-281090 home filesystem protection
+  ansible.builtin.include_tasks:
+    file: V-281090.yml
+    apply:
+      tags:
+        - V-281090
+  tags:
+    - V-281090
+
+- name: Include V-281235 shared-memory mount protection
+  ansible.builtin.include_tasks: V-281235.yml
+
+- name: Include shared STIG audit rule installation
+  ansible.builtin.include_tasks: audit_rules.yml
+
+- name: Include V-281167 GRUB authentication
+  ansible.builtin.include_tasks:
+    file: V-281167.yml
+    apply:
+      tags:
+        - V-281167
+  tags:
+    - V-281167
+
+- name: Include V-280990 remote access logging
+  ansible.builtin.include_tasks: V-280990.yml
+
+- name: Include V-280997 Postfix installation
+  ansible.builtin.include_tasks: V-280997.yml
+
+- name: Include V-281081 c shell permissions
+  ansible.builtin.include_tasks: V-281081.yml
+  tags:
+    - V-281081
+
+- name: Include V-281097 early process auditing
+  ansible.builtin.include_tasks:
+    file: V-281097.yml
+    apply:
+      tags:
+        - V-281097
+  tags:
+    - V-281097
+
+- name: Include V-281131 audit rules for gpasswd
+  ansible.builtin.include_tasks:
+    file: V-281131.yml
+    apply:
+      tags:
+        - V-281131
+  tags:
+    - V-281131
+
+- name: Include V-281135 audit rules for passwd
+  ansible.builtin.include_tasks:
+    file: V-281135.yml
+    apply:
+      tags:
+        - V-281135
+  tags:
+    - V-281135
+
+- name: Include V-281301 virtual system call mitigation
+  ansible.builtin.include_tasks:
+    file: V-281301.yml
+    apply:
+      tags:
+        - V-281301
+  tags:
+    - V-281301
+
+- name: Include V-281303 memory clearing
+  ansible.builtin.include_tasks:
+    file: V-281303.yml
+    apply:
+      tags:
+        - V-281303
+  tags:
+    - V-281303
+
+- name: Include V-281304 page-table isolation
+  ansible.builtin.include_tasks:
+    file: V-281304.yml
+    apply:
+      tags:
+        - V-281304
+  tags:
+    - V-281304
+
+- name: Include V-288828 useradd auditing
+  ansible.builtin.include_tasks:
+    file: V-288828.yml
+    apply:
+      tags:
+        - V-288828
+  tags:
+    - V-288828
+
+- name: Include V-280964 unauthorized peripheral protection
+  ansible.builtin.include_tasks:
+    file: V-280964.yml
+    apply:
+      tags:
+        - V-280964
+  tags:
+    - V-280964
+
+- name: Include V-280998 audit failure mail aliases
+  ansible.builtin.include_tasks:
+    file: V-280998.yml
+    apply:
+      tags:
+        - V-280998
+  tags:
+    - V-280998
+
+- name: Include V-281302 page poisoning
+  ansible.builtin.include_tasks:
+    file: V-281302.yml
+    apply:
+      tags:
+        - V-281302
+  tags:
+    - V-281302
+
+- name: Include V-280999 mail relay restrictions
+  ansible.builtin.include_tasks:
+    file: V-280999.yml
+    apply:
+      tags:
+        - V-280999
+  tags:
+    - V-280999
+
+- name: Include V-281214 password-auth password quality
+  ansible.builtin.include_tasks:
+    file: V-281214.yml
+    apply:
+      tags:
+        - V-281214
+  tags:
+    - V-281214
+
+- name: Include V-281215 system-auth password quality
+  ansible.builtin.include_tasks:
+    file: V-281215.yml
+    apply:
+      tags:
+        - V-281215
+  tags:
+    - V-281215
+
+- name: Include V-281329 DoD authentication trust anchors
+  ansible.builtin.include_tasks:
+    file: V-281329.yml
+    apply:
+      tags:
+        - V-281329
+  tags:
+    - V-281329
+
+- name: Include V-281336 authoritative time synchronization
+  ansible.builtin.include_tasks:
+    file: V-281336.yml
+    apply:
+      tags:
+        - V-281336
+  tags:
+    - V-281336
+
+- name: Include V-280980 routine integrity scans and notification
+  ansible.builtin.include_tasks:
+    file: V-280980.yml
+    apply:
+      tags:
+        - V-280980
+  tags:
+    - V-280980
+
+- name: Include V-280991 cron logging
+  ansible.builtin.include_tasks:
+    file: V-280991.yml
+    apply:
+      tags:
+        - V-280991
+  tags:
+    - V-280991
+
+- name: Include V-281199 authorized local accounts
+  ansible.builtin.include_tasks:
+    file: V-281199.yml
+    apply:
+      tags:
+        - V-281199
+  tags:
+    - V-281199
+
+- name: Include V-281332 V-281333 firewall review and validation
+  ansible.builtin.include_tasks:
+    file: firewall_review.yml
+    apply:
+      tags:
+        - V-281332
+        - V-281333
+  tags:
+    - V-281332
+    - V-281333

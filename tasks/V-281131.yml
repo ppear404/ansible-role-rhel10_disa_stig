@@ -1,0 +1,12 @@
+---
+- name: Include V-281131 audit rules for gpasswd
+  ansible.builtin.include_tasks:
+    file: audit_command.yml
+    apply:
+      tags:
+        - V-281131
+  vars:
+    rhel10_stig_audit_control: V-281131
+    rhel10_stig_audit_program: gpasswd
+  tags:
+    - V-281131

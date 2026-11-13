@@ -1,0 +1,26 @@
+---
+- name: V-280999 - Gather installed package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: V-280999 - Gather service state
+  ansible.builtin.service_facts:
+
+- name: V-280999 - Restrict installed Postfix client connections
+  when: "'postfix' in ansible_facts.packages"
+  block:
+    - name: V-280999 - Read Postfix client restrictions
+      ansible.builtin.command: postconf -h smtpd_client_restrictions
+      register: rhel10_stig_client_restrictions
+      changed_when: false
+      check_mode: false
+
+    - name: V-280999 - Permit only trusted network clients
+      ansible.builtin.command:
+        argv:
+          - postconf
+          - -e
+          - smtpd_client_restrictions = permit_mynetworks,reject
+      when: rhel10_stig_client_restrictions.stdout | regex_replace('\s', '') != 'permit_mynetworks,reject'
+      changed_when: true
+      notify: Reload_postfix

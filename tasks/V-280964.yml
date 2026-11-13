@@ -1,0 +1,50 @@
+---
+- name: V-280964 - Install USBGuard
+  ansible.builtin.package:
+    name: usbguard
+    state: present
+
+- name: V-280964 - Block all USB peripherals on this VM
+  ansible.builtin.copy:
+    dest: /etc/usbguard/rules.conf
+    content: |
+      # V-280964: This VM has no authorized USB peripherals.
+      block
+    owner: root
+    group: root
+    mode: '0600'
+    backup: true
+  notify: Restart_usbguard
+
+- name: V-280964 - Configure USBGuard peripheral enforcement
+  ansible.builtin.lineinfile:
+    path: /etc/usbguard/usbguard-daemon.conf
+    regexp: '^[ \t]*{{ item.key }}[ \t]*='
+    line: '{{ item.key }}={{ item.value }}'
+    backup: true
+  loop:
+    - {key: RuleFile, value: /etc/usbguard/rules.conf}
+    - {key: ImplicitPolicyTarget, value: block}
+    - {key: PresentDevicePolicy, value: apply-policy}
+    - {key: PresentControllerPolicy, value: keep}
+    - {key: InsertedDevicePolicy, value: apply-policy}
+    - {key: AuthorizedDefault, value: none}
+    - {key: RestoreControllerDeviceState, value: 'false'}
+    - {key: DeviceManagerBackend, value: uevent}
+  loop_control:
+    label: '{{ item.key }}'
+  notify: Restart_usbguard
+
+- name: V-280964 - Use only the managed deny-all policy
+  ansible.builtin.replace:
+    path: /etc/usbguard/usbguard-daemon.conf
+    regexp: '^[ \t]*RuleFolder[ \t]*=.*$'
+    replace: '# RuleFolder disabled by V-280964; use RuleFile only.'
+    backup: true
+  notify: Restart_usbguard
+
+- name: V-280964 - Enable and start USBGuard
+  ansible.builtin.systemd_service:
+    name: usbguard.service
+    enabled: true
+    state: started

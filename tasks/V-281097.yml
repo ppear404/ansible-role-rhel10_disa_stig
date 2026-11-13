@@ -1,0 +1,66 @@
+---
+- name: V-281097 - Read GRUB defaults
+  ansible.builtin.slurp:
+    src: /etc/default/grub
+  register: rhel10_stig_grub_defaults
+
+- name: V-281097 - Read all kernel boot entries
+  ansible.builtin.command: grubby --info=ALL
+  register: rhel10_stig_kernel_entries
+  changed_when: false
+  check_mode: false
+
+- name: V-281097 - Read running kernel arguments
+  ansible.builtin.command: cat /proc/cmdline
+  register: rhel10_stig_running_args
+  changed_when: false
+  check_mode: false
+
+- name: V-281097 - Enable early process auditing
+  vars:
+    rhel10_stig_grub_lines: >-
+      {{ (rhel10_stig_grub_defaults.content | b64decode).splitlines()
+         | select('match', '^[ \t]*GRUB_CMDLINE_LINUX=') | list }}
+    rhel10_stig_boot_args: >-
+      {{ rhel10_stig_kernel_entries.stdout | regex_findall('(?m)^args="(.*)"$') }}
+  block:
+    - name: V-281097 - Validate boot configuration before editing
+      ansible.builtin.assert:
+        that:
+          - rhel10_stig_boot_args | length > 0
+          - rhel10_stig_grub_lines | length <= 1
+          - >-
+            rhel10_stig_grub_lines | length == 0 or
+            rhel10_stig_grub_lines[0] is match('^[ \t]*GRUB_CMDLINE_LINUX=("[^"\n]*"|\x27[^\x27\n]*\x27)[ \t]*$')
+        fail_msg: Expected kernel boot entries and at most one quoted GRUB_CMDLINE_LINUX assignment.
+
+    - name: V-281097 - Persist audit setting for future kernels
+      vars:
+        rhel10_stig_default_args: >-
+          {{ (rhel10_stig_grub_lines | first | default('GRUB_CMDLINE_LINUX=""')).split('=', 1)[1].strip()[1:-1] }}
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: '^[ \t]*GRUB_CMDLINE_LINUX='
+        line: >-
+          GRUB_CMDLINE_LINUX="{{ (rhel10_stig_default_args.split() | reject('match', '^audit(?:=|$)') | list + ['audit=1']) | join(' ') }}"
+        backup: true
+
+    - name: V-281097 - Enable auditing in all kernel boot entries
+      ansible.builtin.command:
+        argv:
+          - grubby
+          - --update-kernel=ALL
+          - --remove-args=audit
+          - --args=audit=1
+      when: >-
+        rhel10_stig_boot_args | reject('search', '(^| )audit=1( |$)') | list | length > 0 or
+        rhel10_stig_boot_args | select('search', '(^| )audit(?:=(?!1(?: |$))[^ ]*)?( |$)') | list | length > 0
+      changed_when: true
+
+    - name: V-281097 - Reboot to enable auditing from kernel startup
+      ansible.builtin.reboot:
+        msg: Rebooting to apply V-281097 early process auditing
+        reboot_timeout: 600
+      when: >-
+        'audit=1' not in rhel10_stig_running_args.stdout.split() or
+        rhel10_stig_running_args.stdout is search('(^| )audit(?:=(?!1(?: |$))[^ ]*)?( |$)')

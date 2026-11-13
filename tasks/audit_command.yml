@@ -1,0 +1,42 @@
+---
+- name: "Install execution rules for both architectures - {{ rhel10_stig_audit_control }}"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/rules.d/30-rhel10-stig.rules
+    line: >-
+      -a always,exit -F arch={{ item }} -F path=/usr/bin/{{ rhel10_stig_audit_program }} -F perm=x -k privileged-{{ rhel10_stig_audit_program }}
+    create: true
+    owner: root
+    group: root
+    mode: '0640'
+    backup: true
+  loop:
+    - b32
+    - b64
+  notify: Augenrules_reload
+
+- name: "Remove the superseded architecture-neutral rule - {{ rhel10_stig_audit_control }}"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/rules.d/30-rhel10-stig.rules
+    regexp: '^-a always,exit -F path=/usr/bin/{{ rhel10_stig_audit_program }} -F perm=x -k privileged-{{ rhel10_stig_audit_program }}$'
+    state: absent
+    backup: true
+  notify: Augenrules_reload
+
+- name: "Inspect loaded audit rules - {{ rhel10_stig_audit_control }}"
+  ansible.builtin.command: auditctl -l
+  register: rhel10_stig_loaded_audit_rules
+  changed_when: false
+  check_mode: false
+
+- name: "Request activation when runtime rules are missing - {{ rhel10_stig_audit_control }}"
+  vars:
+    rhel10_stig_audit_pattern: >-
+      {{ '(?m)^-a always,exit -F arch=' ~ item ~ '(?: -S \S+)? -F path=/usr/bin/'
+         ~ rhel10_stig_audit_program ~ ' -F perm=x -F key=privileged-' ~ rhel10_stig_audit_program ~ '$' }}
+  ansible.builtin.debug:
+    msg: "Checking {{ item }} execution auditing for {{ rhel10_stig_audit_program }}"
+  changed_when: rhel10_stig_loaded_audit_rules.stdout is not search(rhel10_stig_audit_pattern)
+  loop:
+    - b32
+    - b64
+  notify: Augenrules_reload

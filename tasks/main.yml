@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for rhel10-stig
+- name: Include category 2 tasks
+  ansible.builtin.include_tasks: cat2.yml
+  tags:
+    - always

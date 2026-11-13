@@ -1,0 +1,18 @@
+---
+- name: Remove actions.rules from /etc/audit/rules.d. Redundant rules will be replaced with RHEL 10 STIG rules
+  ansible.builtin.file:
+    path: /etc/audit/rules.d/actions.rules
+    state: absent
+  notify:
+    - Augenrules_reload
+
+- name: Install RHEL 10 STIG audit rules
+  ansible.builtin.copy:
+    src: files/30-rhel10-stig.rules
+    dest: /etc/audit/rules.d/30-rhel10-stig.rules
+    owner: root
+    group: root
+    mode: '0640'
+    backup: true
+  notify:
+    - Augenrules_reload

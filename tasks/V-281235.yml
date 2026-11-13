@@ -1,0 +1,11 @@
+---
+- name: Configure /dev/shm STIG mount options
+  ansible.posix.mount:
+    path: /dev/shm
+    src: tmpfs
+    fstype: tmpfs
+    opts: defaults,nodev,nosuid,noexec
+    dump: "0"
+    passno: "0"
+    state: present
+  notify: Remount_dev_shm

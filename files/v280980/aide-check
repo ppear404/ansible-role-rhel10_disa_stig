@@ -1,0 +1,12 @@
+#!/bin/bash
+# V-280980: report changes and scan errors to the configured root alias.
+set -u
+report=$(mktemp) || exit 1
+trap 'rm -f "$report"' EXIT
+/usr/sbin/aide --check > "$report" 2>&1
+scan_status=$?
+/usr/bin/mail -s "$(hostname) - Daily AIDE integrity check (status $scan_status)" root < "$report" || exit 1
+# AIDE returns 1-7 for detected changes; errors must also fail the service.
+if [ "$scan_status" -gt 7 ]; then
+    exit "$scan_status"
+fi

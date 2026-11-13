@@ -1,0 +1,39 @@
+---
+- name: V-280991 - Ensure rsyslog is installed
+  ansible.builtin.dnf:
+    name: rsyslog
+    state: present
+
+- name: V-280991 - Find an existing dedicated cron logging rule
+  ansible.builtin.shell: |
+    set -o pipefail
+    shopt -s nullglob
+    grep -El '^[[:space:]]*cron\.\*[[:space:]]+(/var/log/cron[[:space:]]*$|action\(type="omfile"[[:space:]]+file="/var/log/cron"\))' \
+      /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+  args:
+    executable: /bin/bash
+  register: rhel10_stig_cron_rules
+  changed_when: false
+  failed_when: rhel10_stig_cron_rules.rc not in [0, 1]
+  check_mode: false
+
+- name: V-280991 - Configure dedicated cron logging when absent
+  ansible.builtin.copy:
+    content: "# V-280991 - Log every cron severity.\ncron.* action(type=\"omfile\" file=\"/var/log/cron\")\n"
+    dest: /etc/rsyslog.d/99-cron-stig.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: rhel10_stig_cron_rules.rc == 1
+  notify: Restart_rsyslog
+
+- name: V-280991 - Validate the complete rsyslog configuration
+  ansible.builtin.command: rsyslogd -N1
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: V-280991 - Enable and start rsyslog
+  ansible.builtin.systemd_service:
+    name: rsyslog.service
+    enabled: true
+    state: started

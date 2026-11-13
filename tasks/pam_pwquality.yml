@@ -1,0 +1,101 @@
+---
+- name: 'Verify authselect integrity - {{ rhel10_stig_pwquality_control }}'
+  ansible.builtin.command: authselect check
+  changed_when: false
+  check_mode: false
+
+- name: 'Read selected authselect profile - {{ rhel10_stig_pwquality_control }}'
+  ansible.builtin.command: authselect current --raw
+  register: rhel10_stig_authselect_current
+  changed_when: false
+  check_mode: false
+
+- name: 'Require an existing custom profile - {{ rhel10_stig_pwquality_control }}'
+  ansible.builtin.assert:
+    that:
+      - rhel10_stig_authselect_current.stdout.split() | length > 0
+      - rhel10_stig_authselect_current.stdout.split()[0] is match('^custom/[A-Za-z0-9_-]+$')
+    fail_msg: Review unmanaged or vendor PAM configuration and create a custom authselect profile before remediation.
+
+- name: 'Manage the selected custom PAM template - {{ rhel10_stig_pwquality_control }}'
+  vars:
+    rhel10_stig_pam_template: >-
+      /etc/authselect/{{ rhel10_stig_authselect_current.stdout.split()[0] }}/{{ rhel10_stig_pwquality_file }}
+  block:
+    - name: 'Inspect template ownership - {{ rhel10_stig_pwquality_control }}'
+      ansible.builtin.stat:
+        path: '{{ rhel10_stig_pam_template }}'
+        follow: false
+      register: rhel10_stig_pam_template_stat
+
+    - name: 'Require a regular custom template - {{ rhel10_stig_pwquality_control }}'
+      ansible.builtin.assert:
+        that:
+          - rhel10_stig_pam_template_stat.stat.isreg | default(false)
+          - not (rhel10_stig_pam_template_stat.stat.islnk | default(false))
+        fail_msg: Refusing to edit a missing or symlinked template that could modify vendor PAM files.
+
+    - name: 'Read custom PAM template - {{ rhel10_stig_pwquality_control }}'
+      ansible.builtin.slurp:
+        src: '{{ rhel10_stig_pam_template }}'
+      register: rhel10_stig_pam_template_content
+
+    - name: 'Validate supported password stack - {{ rhel10_stig_pwquality_control }}'
+      vars:
+        rhel10_stig_password_lines: >-
+          {{ (rhel10_stig_pam_template_content.content | b64decode).splitlines()
+             | select('match', '^[ \t]*password[ \t]+') | list }}
+        rhel10_stig_quality_lines: >-
+          {{ rhel10_stig_password_lines | select('search', 'pam_pwquality[.]so') | list }}
+      ansible.builtin.assert:
+        that:
+          - rhel10_stig_password_lines | length > 0
+          - rhel10_stig_quality_lines | length <= 1
+          - >-
+            rhel10_stig_quality_lines | length == 0 or
+            (rhel10_stig_password_lines[0] is match('^[ \t]*password[ \t]+(?:required|requisite)[ \t]+pam_pwquality[.]so(?:[ \t]+[^{}]*)?$')
+             and rhel10_stig_quality_lines[0] == rhel10_stig_password_lines[0])
+        fail_msg: Review duplicate, conditional, bypassable, or non-enforcing pwquality rules before changing PAM.
+
+    - name: 'Ensure password quality runs before password writers - {{ rhel10_stig_pwquality_control }}'
+      ansible.builtin.lineinfile:
+        path: '{{ rhel10_stig_pam_template }}'
+        regexp: '^[ \t]*password[ \t]+(?:required|requisite)[ \t]+pam_pwquality[.]so(?:[ \t]|$)'
+        line: password requisite pam_pwquality.so
+        insertbefore: '^[ \t]*password[ \t]+'
+        firstmatch: true
+        backup: true
+      when: >-
+        (rhel10_stig_pam_template_content.content | b64decode)
+        is not search('(?m)^[ \t]*password[ \t]+(?:required|requisite)[ \t]+pam_pwquality[.]so(?:[ \t]|$)')
+      register: rhel10_stig_pwquality_template_change
+
+    - name: 'Regenerate PAM with an authselect backup - {{ rhel10_stig_pwquality_control }}'
+      # Apply immediately so the next control can check integrity against regenerated files.
+      ansible.builtin.command: authselect apply-changes -b  # noqa: no-handler
+      when: rhel10_stig_pwquality_template_change is changed
+      changed_when: true
+
+- name: 'Verify generated configuration integrity - {{ rhel10_stig_pwquality_control }}'
+  ansible.builtin.command: authselect check
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: 'Read effective PAM configuration - {{ rhel10_stig_pwquality_control }}'
+  ansible.builtin.slurp:
+    src: '/etc/pam.d/{{ rhel10_stig_pwquality_file }}'
+  register: rhel10_stig_pwquality_effective
+  when: not ansible_check_mode
+
+- name: 'Verify effective password quality enforcement - {{ rhel10_stig_pwquality_control }}'
+  vars:
+    rhel10_stig_effective_password: >-
+      {{ (rhel10_stig_pwquality_effective.content | b64decode).splitlines()
+         | select('match', '^[ \t]*password[ \t]+') | list }}
+  ansible.builtin.assert:
+    that:
+      - rhel10_stig_effective_password | length > 0
+      - rhel10_stig_effective_password[0] is match('^[ \t]*password[ \t]+(?:required|requisite)[ \t]+pam_pwquality[.]so(?:[ \t]|$)')
+    fail_msg: Effective password stack must start with an enforcing pwquality rule.
+  when: not ansible_check_mode

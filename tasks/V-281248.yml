@@ -1,0 +1,47 @@
+---
+- name: V-281248 - Read local partition mounts
+  ansible.builtin.command: findmnt --real --noheadings --output SOURCE,TARGET,FSTYPE,OPTIONS --raw
+  register: rhel10_stig_local_mounts
+  changed_when: false
+  check_mode: false
+
+- name: V-281248 - Read persistent mount configuration
+  ansible.builtin.slurp:
+    src: /etc/fstab
+  register: rhel10_stig_nodev_fstab
+
+- name: V-281248 - Gather mount configuration fields
+  ansible.builtin.set_fact:
+    rhel10_stig_local_partitions: >-
+      {{ rhel10_stig_local_mounts.stdout_lines | map('split')
+         | selectattr(0, 'match', '^/dev/') | rejectattr(1, 'equalto', '/') | list }}
+    rhel10_stig_nodev_entries: >-
+      {{ (rhel10_stig_nodev_fstab.content | b64decode).splitlines()
+         | reject('match', '^[ \t]*(#|$)') | map('split') | list }}
+
+- name: V-281248 - Persist nodev for mounted local partitions
+  vars:
+    entry: "{{ rhel10_stig_nodev_entries | selectattr(1, 'equalto', item[1]) | first }}"
+  ansible.posix.mount:
+    path: "{{ item[1] }}"
+    src: "{{ entry[0] }}"
+    fstype: "{{ entry[2] }}"
+    opts: "{{ (entry[3].split(',') | reject('equalto', 'dev') | reject('equalto', 'nodev') | list + ['nodev']) | join(',') }}"
+    dump: "{{ entry[4] }}"
+    passno: "{{ entry[5] }}"
+    state: present
+    backup: true
+  loop: "{{ rhel10_stig_local_partitions }}"
+  loop_control:
+    label: "{{ item[1] }}"
+  notify: Reload_systemd
+
+- name: V-281248 - Remount local partitions missing nodev
+  ansible.posix.mount:
+    path: "{{ item[1] }}"
+    opts: nodev
+    state: remounted
+  loop: "{{ rhel10_stig_local_partitions }}"
+  loop_control:
+    label: "{{ item[1] }}"
+  when: "'nodev' not in item[3].split(',')"

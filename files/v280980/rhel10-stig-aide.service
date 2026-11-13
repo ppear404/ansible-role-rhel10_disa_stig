@@ -1,0 +1,8 @@
+[Unit]
+Description=Daily STIG AIDE integrity scan and administrator notification
+After=postfix.service
+Requires=postfix.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/rhel10-stig-aide-check

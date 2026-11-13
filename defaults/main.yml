@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: MIT-0
+---
+# defaults file for rhel10-stig
+mount_options:
+  - path: /home
+    opts: nodev,nosuid,noexec
+  - path: /tmp
+    opts: nodev,nosuid,noexec
+  - path: /var
+    opts: nodev
+  - path: /var/log
+    opts: nodev,nosuid,noexec
+  - path: /var/log/audit
+    opts: nodev,nosuid,noexec
+  - path: /var/tmp
+    opts: nodev,nosuid,noexec
+  - path: /boot
+    opts: nodev,nosuid
+
+# V-281167: GRUB-only account (not a Linux user).
+grub_superuser: grubdev
+# how to generate a new password hash: 'grub-mkpasswd-pbkdf2'
+# grub_password_hash: "move this var to your secrets vault and override in host_vars/group_vars"
+
+
+# V-280998: ISSO/SA recipients or distribution lists for root mail.
+# Override in host_vars/group_vars. Empty preserves the existing root alias.
+rhel10_stig_root_mail_recipients:
+  - system.administrator@mail.mil
+
+# Replace with approved DoW sources before claiming V-281336 compliance.
+rhel10_stig_time_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+  - 2.pool.ntp.org
+  - 3.pool.ntp.org
+
+# V-281199: Approved privileged local interactive accounts, 2026-11-13.
+rhel10_stig_authorized_local_accounts:
+  - root
+  - ansible
+
+# V-281332/V-281333: User-approved current dev services, 2026-11-13.
+# The stock IPv6 link-control policy is retained; IPv6 disablement is a separate change.
+rhel10_stig_firewall_approval:
+  approval: Owner approved SSH, Cockpit and DHCPv6 client on 2026-11-13; maintain PPSM CLSA/CAL assessment references in the security plan.
+  zone: public
+  interfaces:
+    - ens18
+  services:
+    ssh:
+      ports: 22/tcp
+      destination: ''
+    cockpit:
+      ports: 9090/tcp
+      destination: ''
+    dhcpv6-client:
+      ports: 546/udp
+      destination: 'ipv6:fe80::/64'
+  allow_standard_ipv6_control: true

@@ -1,0 +1,53 @@
+---
+- name: V-281233 - Read the active /boot mount
+  ansible.builtin.command: findmnt --noheadings --output OPTIONS --mountpoint /boot
+  register: rhel10_stig_boot_mount
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: V-281233 - Read persistent mount settings
+  ansible.builtin.slurp:
+    src: /etc/fstab
+  register: rhel10_stig_boot_fstab
+
+- name: V-281233 - Configure nosuid for the separate /boot filesystem
+  vars:
+    rhel10_stig_boot_entries: >-
+      {{ (rhel10_stig_boot_fstab.content | b64decode).splitlines()
+         | select('match', '^[ \t]*[^#\s]\S*[ \t]+/boot[ \t]+') | list }}
+  block:
+    - name: V-281233 - Require a separate persistent /boot filesystem
+      ansible.builtin.assert:
+        that:
+          - rhel10_stig_boot_mount.rc == 0
+          - rhel10_stig_boot_entries | length == 1
+          - rhel10_stig_boot_entries[0].split() | length >= 6
+        fail_msg: >-
+          V-281233 requires a separate mounted /boot filesystem and one complete
+          /etc/fstab entry.
+
+    - name: V-281233 - Persist nosuid and preserve existing mount options
+      vars:
+        rhel10_stig_boot_fields: "{{ rhel10_stig_boot_entries[0].split() }}"
+      ansible.posix.mount:
+        path: /boot
+        src: "{{ rhel10_stig_boot_fields[0] }}"
+        fstype: "{{ rhel10_stig_boot_fields[2] }}"
+        opts: >-
+          {{ (rhel10_stig_boot_fields[3].split(',') | reject('equalto', 'suid')
+              | reject('equalto', 'nosuid') | list + ['nosuid']) | join(',') }}
+        dump: "{{ rhel10_stig_boot_fields[4] }}"
+        passno: "{{ rhel10_stig_boot_fields[5] }}"
+        state: present
+        backup: true
+      notify:
+        - Reload_systemd
+        - Remount_boot
+
+    - name: V-281233 - Request remount if the running /boot lacks nosuid
+      ansible.builtin.debug:
+        msg: /boot is missing the nosuid mount option and will be remounted.
+      when: "'nosuid' not in rhel10_stig_boot_mount.stdout.split(',')"
+      changed_when: true
+      notify: Remount_boot

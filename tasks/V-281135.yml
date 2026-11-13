@@ -1,0 +1,12 @@
+---
+- name: Include V-281135 audit rules for passwd
+  ansible.builtin.include_tasks:
+    file: audit_command.yml
+    apply:
+      tags:
+        - V-281135
+  vars:
+    rhel10_stig_audit_control: V-281135
+    rhel10_stig_audit_program: passwd
+  tags:
+    - V-281135

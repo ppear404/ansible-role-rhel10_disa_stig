@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily STIG AIDE integrity scan schedule
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=rhel10-stig-aide.service
+
+[Install]
+WantedBy=timers.target

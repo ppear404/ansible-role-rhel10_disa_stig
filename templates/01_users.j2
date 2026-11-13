@@ -1,0 +1,12 @@
+#!/usr/bin/sh -e
+# Managed by Ansible - V-281167
+cat << EOF
+if [ -f \${prefix}/user.cfg ]; then
+  source \${prefix}/user.cfg
+  if [ -n "\${GRUB2_PASSWORD}" ]; then
+    set superusers="{{ grub_superuser }}"
+    export superusers
+    password_pbkdf2 {{ grub_superuser }} \${GRUB2_PASSWORD}
+  fi
+fi
+EOF

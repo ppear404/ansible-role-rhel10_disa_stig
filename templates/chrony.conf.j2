@@ -1,0 +1,8 @@
+{% for line in (rhel10_stig_chrony_config.content | b64decode).splitlines() %}
+{% if not (line is match('^\s*(server|pool|peer|sourcedir)\s+')) %}
+{{ line }}
+{% endif %}
+{% endfor %}
+{% for server in rhel10_stig_time_servers %}
+server {{ server }} iburst maxpoll 16
+{% endfor %}

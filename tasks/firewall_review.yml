@@ -1,0 +1,36 @@
+---
+- name: V-281332 V-281333 - Require an approved firewall baseline
+  ansible.builtin.assert:
+    that:
+      - rhel10_stig_firewall_approval is mapping
+      - rhel10_stig_firewall_approval.approval | default('') | length > 0
+      - rhel10_stig_firewall_approval.services | default({}) | length > 0
+      - rhel10_stig_firewall_approval.interfaces | default([]) | length > 0
+    fail_msg: Configure the SA/ISSO-approved firewall baseline and retain PPSM assessment references.
+
+- name: V-281332 V-281333 - Ensure firewalld is installed
+  ansible.builtin.package:
+    name: firewalld
+    state: present
+
+- name: V-281332 V-281333 - Ensure firewalld is active and enabled
+  ansible.builtin.systemd_service:
+    name: firewalld.service
+    enabled: true
+    state: started
+
+- name: V-281332 V-281333 - Install approved firewall review record
+  ansible.builtin.copy:
+    content: "{{ rhel10_stig_firewall_approval | to_nice_json }}\n"
+    dest: /etc/security/rhel10-stig-firewall-approved.json
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: V-281332 V-281333 - Install read-only firewall validation
+  ansible.builtin.copy:
+    src: firewall_validate.py
+    dest: /usr/local/sbin/rhel10-stig-firewall-validate
+    owner: root
+    group: root
+    mode: '0700'
