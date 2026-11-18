@@ -1,0 +1,120 @@
+{
+  "client_id": "ui",
+  "customizations": {
+    "filesystem": [
+      {
+        "min_size": 10737418240,
+        "mountpoint": "/"
+      },
+      {
+        "min_size": 1073741824,
+        "mountpoint": "/home"
+      },
+      {
+        "min_size": 1073741824,
+        "mountpoint": "/tmp"
+      },
+      {
+        "min_size": 3221225472,
+        "mountpoint": "/var"
+      },
+      {
+        "min_size": 1073741824,
+        "mountpoint": "/var/log"
+      },
+      {
+        "min_size": 10737418240,
+        "mountpoint": "/var/log/audit"
+      },
+      {
+        "min_size": 1073741824,
+        "mountpoint": "/var/tmp"
+      }
+    ],
+    "fips": {
+      "enabled": true
+    },
+    "hostname": "rhel-10-fips-image-dev001",
+    "kernel": {
+      "append": "audit_backlog_limit=8192 audit=1 page_poison=1 vsyscall=none pti=on init_on_free=1"
+    },
+    "openscap": {
+      "profile_id": "xccdf_org.ssgproject.content_profile_stig"
+    },
+    "packages": [
+      "audit",
+      "audispd-plugins",
+      "usbguard",
+      "sssd",
+      "openssh-server",
+      "openssh-clients",
+      "chrony",
+      "s-nail",
+      "fapolicyd",
+      "cronie",
+      "policycoreutils",
+      "policycoreutils-python-utils",
+      "libreswan",
+      "firewalld",
+      "rsyslog",
+      "rsyslog-gnutls",
+      "pkcs11-provider",
+      "pcsc-lite",
+      "pcsc-lite-ccid",
+      "opensc",
+      "subscription-manager",
+      "sequoia-sq",
+      "nss-tools",
+      "gnutls-utils",
+      "sudo",
+      "crypto-policies",
+      "aide"
+    ],
+    "services": {
+      "enabled": [
+        "auditd",
+        "usbguard",
+        "sssd",
+        "sshd",
+        "chronyd",
+        "fapolicyd",
+        "firewalld",
+        "systemd-journald",
+        "rsyslog",
+        "pcscd"
+      ],
+      "masked": [
+        "kdump",
+        "autofs",
+        "debug-shell"
+      ]
+    },
+    "timezone": {
+      "timezone": "Europe/Berlin"
+    },
+    "users": [
+      {
+        "groups": [
+          "wheel"
+        ],
+        "hasPassword": true,
+        "name": "ansible",
+        "password": "$6$ubH0Lc4j74L/9zgI$uyXyA3nCjkoBdstvJ6mnu.0DHL39xXNUS9c6FdnSkFMCYd8L44nRgrFEmoYEK/OljWFOKhyNBlKVZviLadWls/",
+        "ssh_key": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDe2lS46Omm90XhSlWwdFXDNUeZbD7/+c8y4dBbrPcVsRPsmAH32c1H7IHPAGrOv61H71KAO0mxFpo0c456J6gSF5AUO5VcfoWOA0bfJQqpFhp5imqQ4XDGMyH4Nq1NDtDjxY/uhBUf6FlG3z3tIdbKV2C/claGn7iPio5/WB1CArt418Bb2/TFGd1il28mk2RS+zO+zmshHvKZirimDPDQSWf6Z4mffq5C/laW0lDolDxH4ETO/J3Lx/yLKG3451oqGDPvgLmrC53H1njOBYQ3IDoh4XylkDpmI4aB8IN6EtbsQ/ctEAUTA+ohEOF7akmNs/Le5HtQFCLs7RF2Qis3YXDfyGWWNlv6ewKvLdswjmAfU0Pzg76f+ptgeq0KeZUx4Sxzyq9Xt07QKfBcM2zWbtoUJQp7JdEbrA+uQ06MAjXs17mq7igopQA5iLjw850eJdBswrQ1hxArLJnEFXsakzSbt5XOC02btoJkd9DrlpPbTHu4fGXwqXhrri1KTBrvFFAw6l0oETRxO6auRG5WWvWiW+IvzmXraMZYDO+R30l7MysKI9VD7WVK1gUQfg0CpB69QNrk0e4EvNV6XMj0KgV1ja4hOZAq0bze2lgT4GAefaCbbXFiqcgLT/KjGkM2Pg/jqGTUjJGz3auxakxBkUog0TC9KX1jR8Yist9CIQ=="
+      }
+    ]
+  },
+  "distribution": "rhel-10",
+  "image_description": "OpenScap Profile applied. Purpose: build ansible stig automation",
+  "image_name": "rhel-10-x86_64-fips-0.0.1",
+  "image_requests": [
+    {
+      "architecture": "x86_64",
+      "image_type": "image-installer",
+      "upload_request": {
+        "options": {},
+        "type": "aws.s3"
+      }
+    }
+  ]
+}
